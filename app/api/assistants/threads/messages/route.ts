@@ -1,0 +1,177 @@
+import { type NextRequest, NextResponse } from "next/server";
+
+import { AssistantResponse } from "ai";
+import type { BadRequestError } from "openai/error";
+
+import { DEFAULT_COMPILER_VERSION, supportedChains } from "@/lib/config";
+import { openai } from "@/lib/data/openai";
+import { deployContract, deployTokenScript } from "@/lib/solidity/deploy";
+import { ToolName } from "@/lib/tools";
+
+export const runtime = "nodejs";
+
+export async function POST(request: NextRequest) {
+	const {
+		message,
+		threadId: threadIdFromClient,
+		assistantId,
+	} = (await request.json()) as {
+		message: string;
+		threadId: string;
+		assistantId: string;
+	};
+
+	if (!assistantId) {
+		console.error("Assistant ID is required");
+		return NextResponse.json(
+			{ error: "Assistant ID is required" },
+			{ status: 400 }
+		);
+	}
+
+	const threadId =
+		threadIdFromClient || (await openai.beta.threads.create()).id;
+
+	const { id: messageId } = await openai.beta.threads.messages
+		.create(threadId, {
+			role: "user",
+			content: message,
+		})
+		.catch(async (reqError: BadRequestError & { error: Error }) => {
+			const { error } = reqError;
+			if (error.message.includes("run_")) {
+				console.error("Found pending run, cancelling run and retrying message");
+				const runId = `run_${error.message.split("run_")[1].split(" ")[0]}`;
+				await openai.beta.threads.runs.cancel(threadId, runId);
+				return await openai.beta.threads.messages.create(threadId, {
+					role: "user",
+					content: message,
+				});
+			}
+			throw error;
+		});
+
+	return AssistantResponse(
+		{ threadId, messageId },
+		async ({ forwardStream }) => {
+			const runStream = openai.beta.threads.runs.stream(threadId, {
+				assistant_id: assistantId,
+				stream: true,
+				model: "gpt-4",
+				additional_instructions: JSON.stringify({
+					latestSettings: {
+						compilerVersion: DEFAULT_COMPILER_VERSION,
+						availableChains: supportedChains.map((chain) => {
+							return {
+								name: chain.name,
+								id: chain.id,
+							};
+						}),
+					},
+				}),
+			});
+
+			let runResult = await forwardStream(runStream);
+
+			while (
+				runResult?.status === "requires_action" &&
+				runResult.required_action?.type === "submit_tool_outputs"
+			) {
+				const tool_outputs = await Promise.all(
+					runResult.required_action.submit_tool_outputs.tool_calls.map(
+						async (toolCall: any) => {
+							const parameters = JSON.parse(toolCall.function.arguments);
+							try {
+								switch (toolCall.function.name) {
+									case ToolName.DeployContract: {
+										const {
+											chainId,
+											contractName,
+											sourceCode,
+											constructorArgs,
+										} = parameters;
+										const deployResult = await deployContract({
+											chainId,
+											contractName,
+											sourceCode,
+											constructorArgs,
+										});
+
+										return {
+											output: `Contract Deployed: ${deployResult.explorerUrl} IPFS Repository: ${deployResult.ipfsUrl}`,
+											tool_call_id: toolCall.id,
+										};
+									}
+									case ToolName.DeployTokenScript: {
+										const {
+											chainId,
+											tokenAddress,
+											tokenName,
+											tokenScriptSource,
+											ensDomain,
+											includeBurnFunction,
+										} = parameters;
+
+										const deployResult = await deployTokenScript({
+											chainId,
+											tokenAddress,
+											tokenName,
+											tokenScriptSource,
+											ensDomain,
+											includeBurnFunction: includeBurnFunction || false,
+										});
+
+										let output = "TokenScript deployed:\n";
+										output += `Explorer URL: ${deployResult.explorerUrl}\n`;
+										output += `IPFS URL: ${deployResult.ipfsUrl}\n`;
+										output += `Viewer URL: ${deployResult.viewerUrl}`;
+
+										if (ensDomain) {
+											output += `\nENS Domain: ${ensDomain}`;
+										}
+
+										if (includeBurnFunction) {
+											output += "\nBurn function included in TokenScript";
+										}
+
+										return {
+											output,
+											tool_call_id: toolCall.id,
+										};
+									}
+									default:
+										throw new Error(
+											`Unknown tool call function: ${toolCall.function.name}`
+										);
+								}
+							} catch (error) {
+								const stringifiedError = `Error in tool call: ${JSON.stringify(
+									error instanceof Error
+										? {
+												message: error.message,
+												stack: error.stack,
+										  }
+										: { error }
+								)}`;
+
+								console.error(stringifiedError);
+								return {
+									output: stringifiedError,
+									tool_call_id: toolCall.id,
+								};
+							}
+						}
+					)
+				);
+
+				runResult = await forwardStream(
+					openai.beta.threads.runs.submitToolOutputsStream(
+						threadId,
+						runResult.id,
+						{ tool_outputs, stream: true }
+					)
+				);
+			}
+		}
+	);
+}

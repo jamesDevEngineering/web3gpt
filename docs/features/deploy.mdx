@@ -1,0 +1,49 @@
+# Deploy Contracts
+
+Write smart contracts by simply describing your ideas. Our AI Agents reason, plan, then produce ready-to-compile & deploy Solidity smart contracts.
+
+## Simple Example
+
+Suppose you want to create an ERC20 token called "MyToken" with the symbol "MTK" and a total supply of 1,000,000 tokens. Just describe it in natural language:
+
+```plaintext
+Create an ERC20 token named MyToken with symbol MTK and total supply of 1,000,000 tokens.
+```
+
+Web3GPT will generate the Solidity code for you:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract MyToken is ERC20 {
+    constructor() ERC20("MyToken", "MTK") {
+        _mint(msg.sender, 1000000 * 10 ** decimals());
+    }
+}
+```
+
+## Deploying a Smart Contract
+
+### Steps
+
+1. **Describe Your Idea:** Enter your idea, whether it's a contract, protocol, dApp idea, or utility.
+
+2. **Generate the Code:** The AI agent will plan, ask follow-up questions if needed, and produce the Solidity code for your request.
+
+3. **Review the Code:** Examine the generated code and request changes in chat if necessary. Ensure there are no omitted or placeholder sections.
+
+4. **Deploy:**
+
+   - **Agent Deploy:** Deploy your contract without needing a wallet. Simply specify the target chain (e.g., "Deploy to X chain"), and the Agent will handle the deployment.
+   - **Manual Deployment:** Connect your wallet and click the Deploy Contract button above the source code to deploy the smart contract.
+
+   Note: If the contract has Ownable access control, or has interactions with the deployer, you should provide your wallet address and request ownership of the contract in the chat.
+
+5. **View Deployment Results:** Navigate to the explorer link. The contract will be automatically verified within 1 minute of deployment. Visit the IPFS directory to view source code and compilation files.
+
+### Error Handling
+
+If there are compilation errors, the agent will attempt to resolve them and show updates. For incorrect or missing parameters, the agent may retry or ask for additional information.
