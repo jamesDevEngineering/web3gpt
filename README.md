@@ -15,7 +15,7 @@ Web3GPT is an AI-powered smart contract development platform that combines Large
   - Mantle Sepolia
   - Polygon Amoy
   - Sepolia
-  - Solana (Coming Soon)
+  - Solana
 
 - **Specialized AI Agents:**
 
