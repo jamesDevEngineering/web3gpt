@@ -1,49 +1,120 @@
-# Deploy Contracts
+# Deploy Smart Contracts
 
-Write smart contracts by simply describing your ideas. Our AI Agents reason, plan, then produce ready-to-compile & deploy Solidity smart contracts.
+Write smart contracts by simply describing your ideas. Our AI Agents reason, plan, then produce ready-to-compile & deploy Solana programs in Rust or Solidity smart contracts.
 
-## Simple Example
+## Solana Program Development
 
-Suppose you want to create an ERC20 token called "MyToken" with the symbol "MTK" and a total supply of 1,000,000 tokens. Just describe it in natural language:
+### Simple Example
+
+Create a Solana token program with custom mint authority:
 
 ```plaintext
-Create an ERC20 token named MyToken with symbol MTK and total supply of 1,000,000 tokens.
+Create a Solana SPL token with name "SolToken", symbol "STK", and decimals 9. Only the owner should be able to mint new tokens.
 ```
 
-Web3GPT will generate the Solidity code for you:
+Web3GPT will generate the Rust code using the Anchor framework:
 
-```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+```rust
+use anchor_lang::prelude::*;
+use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
-contract MyToken is ERC20 {
-    constructor() ERC20("MyToken", "MTK") {
-        _mint(msg.sender, 1000000 * 10 ** decimals());
+#[program]
+pub mod sol_token {
+    use super::*;
+
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        Ok(())
     }
+
+    pub fn mint_tokens(ctx: Context<MintTokens>, amount: u64) -> Result<()> {
+        require!(ctx.accounts.authority.key() == ctx.accounts.mint.mint_authority.unwrap(), ErrorCode::UnauthorizedMint);
+
+        token::mint_to(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                token::MintTo {
+                    mint: ctx.accounts.mint.to_account_info(),
+                    to: ctx.accounts.token_account.to_account_info(),
+                    authority: ctx.accounts.authority.to_account_info(),
+                },
+            ),
+            amount,
+        )?;
+
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    #[account(
+        init,
+        payer = authority,
+        mint::decimals = 9,
+        mint::authority = authority.key(),
+    )]
+    pub mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+pub struct MintTokens<'info> {
+    #[account(mut)]
+    pub mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub token_account: Account<'info, TokenAccount>,
+    pub authority: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[error_code]
+pub enum ErrorCode {
+    #[msg("Only mint authority can mint new tokens")]
+    UnauthorizedMint,
 }
 ```
 
-## Deploying a Smart Contract
+## Deploying a Solana Program
 
 ### Steps
 
-1. **Describe Your Idea:** Enter your idea, whether it's a contract, protocol, dApp idea, or utility.
+1. **Describe Your Idea:** Enter your idea for a Solana program, whether it's a token, NFT collection, DeFi protocol, or any other on-chain utility.
 
-2. **Generate the Code:** The AI agent will plan, ask follow-up questions if needed, and produce the Solidity code for your request.
+2. **Generate the Code:** The Solana Agent will plan, ask follow-up questions if needed, and produce the Rust code using the Anchor framework.
 
-3. **Review the Code:** Examine the generated code and request changes in chat if necessary. Ensure there are no omitted or placeholder sections.
+3. **Review the Code:** Examine the generated code and request changes in chat if necessary. The agent can help you understand PDAs, account validation, and other Solana-specific concepts.
 
 4. **Deploy:**
 
-   - **Agent Deploy:** Deploy your contract without needing a wallet. Simply specify the target chain (e.g., "Deploy to X chain"), and the Agent will handle the deployment.
-   - **Manual Deployment:** Connect your wallet and click the Deploy Contract button above the source code to deploy the smart contract.
+   - **Agent Deploy:** Deploy your program without manual setup. Simply say "Deploy to Solana devnet" and the agent will handle the deployment.
+   - **Manual Deployment:** Use Anchor CLI commands to build and deploy the program yourself.
 
-   Note: If the contract has Ownable access control, or has interactions with the deployer, you should provide your wallet address and request ownership of the contract in the chat.
+   Note: For programs that manage assets or require specific permissions, make sure to properly set up program authorities and upgrade authorities.
 
-5. **View Deployment Results:** Navigate to the explorer link. The contract will be automatically verified within 1 minute of deployment. Visit the IPFS directory to view source code and compilation files.
+5. **View Deployment Results:** The agent will provide:
+   - Program ID and deployment transaction
+   - Explorer link to view the program on Solana Explorer
+   - IDL file for easy program integration
+   - Client-side code examples for interacting with your program
+
+### Advanced Features
+
+- **Program Upgrades:** Deploy upgradeable programs and manage program updates
+- **Cross-Program Invocation (CPI):** Interact with other Solana programs
+- **Custom Instructions:** Add new functionality to your program
+- **Account Management:** Handle PDAs and account validation
+- **Error Handling:** Custom error types and proper error handling
 
 ### Error Handling
 
-If there are compilation errors, the agent will attempt to resolve them and show updates. For incorrect or missing parameters, the agent may retry or ask for additional information.
+If there are compilation errors or deployment issues, the agent will:
+
+- Explain the error in detail
+- Suggest fixes based on common Solana development patterns
+- Help you understand Solana-specific concepts like rent exemption, account sizes, and more

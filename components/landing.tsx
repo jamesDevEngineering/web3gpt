@@ -2,8 +2,6 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-
-import Player from "react-lottie-player";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -77,16 +75,11 @@ export function Landing({ userId, disableAnimations }: LandingProps) {
 
 				<div className="grid-row-3 grid grid-flow-row gap-1 md:grid-flow-col pb-4 md:pt-4 md:gap-4">
 					<div className="mx-3 grid grid-cols-3 content-center gap-1 md:grid-cols-1 md:gap-4">
-						{isClient && (
-							<Player
-								play={!disableAnimations}
-								loop={false}
-								speed={0.5}
-								direction={-1}
-								path="/lotties/puzzle.json"
-								className="size-24  w-full"
-							/>
-						)}
+						<div className="flex justify-center items-center">
+							<span className="text-6xl hover:scale-110 transition-transform duration-200">
+								🧩
+							</span>
+						</div>
 						<div className="col-span-2 mt-4 text-left md:col-span-1 md:mt-0 md:text-center">
 							<h3 className="font-bold md:mb-2">Generate</h3>
 							<p className="text-sm text-gray-600 dark:text-gray-400">
@@ -96,16 +89,11 @@ export function Landing({ userId, disableAnimations }: LandingProps) {
 					</div>
 
 					<div className="mx-3 grid grid-cols-3 content-center md:grid-cols-1 gap-4">
-						{isClient && (
-							<Player
-								play={!disableAnimations}
-								loop={false}
-								speed={0.5}
-								direction={1}
-								path="/lotties/globe.json"
-								className="size-24  w-full"
-							/>
-						)}
+						<div className="flex justify-center items-center">
+							<span className="text-6xl hover:scale-110 transition-transform duration-200">
+								🚀
+							</span>
+						</div>
 						<div className="col-span-2 mt-4 text-left md:col-span-1 md:mt-0 md:text-center">
 							<h3 className="font-bold md:mb-2">Deploy</h3>
 							<p className="text-sm text-gray-600 dark:text-gray-400">
@@ -113,17 +101,13 @@ export function Landing({ userId, disableAnimations }: LandingProps) {
 							</p>
 						</div>
 					</div>
-					<div className="mx-3 grid grid-cols-3 content-center gap-1 md:grid-cols-1 md:gap-4">
-						{isClient && (
-							<Player
-								play={!disableAnimations}
-								loop={false}
-								speed={0.5}
-								path="/lotties/clock.json"
-								className="size-24  w-full"
-							/>
-						)}
 
+					<div className="mx-3 grid grid-cols-3 content-center gap-1 md:grid-cols-1 md:gap-4">
+						<div className="flex justify-center items-center">
+							<span className="text-6xl hover:scale-110 transition-transform duration-200">
+								⚡
+							</span>
+						</div>
 						<div className="col-span-2 mt-4 text-left md:col-span-1 md:mt-0 md:text-center">
 							<h3 className="font-bold md:mb-2">Speed Up</h3>
 							<p className="text-sm text-gray-600 dark:text-gray-400">
